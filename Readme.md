@@ -46,7 +46,7 @@ fafa-snake-game/
 ├── style.css           # Styling and visual design
 ├── script.js           # Game logic and mechanics
 ├── FAAAH!.mpeg        # Sound effect for eating food
-├── img/        # Game screenshots
+├── /        # Game screenshots
 │   ├── start.png
 │   ├── gameplay.png
 │   └── gameover.png
