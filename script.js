@@ -1,5 +1,4 @@
 const blockside = 30;
-
 const modal = document.querySelector(".modal");
 const startG = document.querySelector(".startgame");
 const restartG = document.querySelector(".restartgame");
@@ -16,6 +15,14 @@ let min = 0;
 let scorecount = 0;
 let motion = "down";
 let gameloop;
+let nextDirection = motion;
+
+let speed = 420; // starting slow
+const minSpeed = 90; // fastest allowed
+const speedStep = 15; // speed increase per food
+
+let lastTime = 0;
+let accumulator = 0;
 
 const cols = Math.floor(board.clientWidth / blockside);
 const rows = Math.floor(board.clientHeight / blockside);
@@ -39,7 +46,6 @@ if (savedHighScore) {
 
 setInterval(() => {
   min++;
-  console.log(min);
 }, 60000);
 
 setInterval(() => {
@@ -58,9 +64,25 @@ for (let i = 0; i < rows; i++) {
 }
 board.appendChild(fragment);
 
+function updateSpeed() {
+  const level = Math.floor(scorecount / 10);
+  let newSpeed = 420 - level * speedStep;
+  if (newSpeed < minSpeed) newSpeed = minSpeed;
+  speed = newSpeed;
+}
+
 function render() {
+  // FIX: apply buffered direction every frame
+  motion = nextDirection;
+
   timer.textContent = `${min}:${seconds}`;
-  blocks[`${food[0].x}-${food[0].y}`].classList.add("food");
+  const foodBlock = blocks[`${food[0].x}-${food[0].y}`];
+  foodBlock.classList.add("food");
+
+  if (!foodBlock.querySelector("span")) {
+    const leaf = document.createElement("span");
+    foodBlock.appendChild(leaf);
+  }
 
   let head = null;
   if (motion == "left") {
@@ -79,7 +101,9 @@ function render() {
   if (head.x == food[0].x && head.y == food[0].y) {
     sound.play();
     scorecount += 10;
-    blocks[`${food[0].x}-${food[0].y}`].classList.remove("food");
+    const oldFood = blocks[`${food[0].x}-${food[0].y}`];
+    oldFood.classList.remove("food");
+    oldFood.innerHTML = "";
     score.textContent = `${scorecount}`;
     food = [
       {
@@ -88,6 +112,7 @@ function render() {
       },
     ];
     snake.unshift(head);
+    updateSpeed();
   }
 
   if (head.x < 0 || head.x >= rows || head.y < 0 || head.y >= cols) {
@@ -99,35 +124,74 @@ function render() {
   }
 
   snake.forEach((ele) => {
-    blocks[`${ele.x}-${ele.y}`].classList.remove("snakes");
+    const block = blocks[`${ele.x}-${ele.y}`];
+    block.classList.remove(
+      "snakes",
+      "snake-head",
+      "snake-tail",
+      "direction-up",
+      "direction-down",
+      "direction-left",
+      "direction-right",
+      "tail-up",
+      "tail-down",
+      "tail-left",
+      "tail-right",
+    );
+    block.innerHTML = "";
   });
+
   snake.pop();
   snake.unshift(head);
 
-  snake.forEach((ele) => {
-    blocks[`${ele.x}-${ele.y}`].classList.add("snakes");
+  snake.forEach((ele, index) => {
+    const block = blocks[`${ele.x}-${ele.y}`];
+
+    if (index === 0) {
+      block.classList.add("snake-head");
+      block.classList.add(`direction-${motion}`);
+
+      const eyes = createEyes();
+      block.appendChild(eyes[0]);
+      block.appendChild(eyes[1]);
+    } else if (index === snake.length - 1) {
+      block.classList.add("snake-tail");
+      const tailDir = getTailDirection();
+      block.classList.add(`tail-${tailDir}`);
+    } else {
+      block.classList.add("snakes");
+    }
   });
 }
 
 function RestartGame() {
-  // Clear the game loop
   clearInterval(gameloop);
 
-  // Remove food and snake from board
   blocks[`${food[0].x}-${food[0].y}`].classList.remove("food");
   snake.forEach((ele) => {
-    blocks[`${ele.x}-${ele.y}`].classList.remove("snakes");
+    const block = blocks[`${ele.x}-${ele.y}`];
+    block.classList.remove(
+      "snakes",
+      "snake-head",
+      "snake-tail",
+      "direction-up",
+      "direction-down",
+      "direction-left",
+      "direction-right",
+      "tail-up",
+      "tail-down",
+      "tail-left",
+      "tail-right",
+    );
+    block.innerHTML = "";
   });
 
-  // Update high score with proper null handling
   const currentHighScore = parseInt(localStorage.getItem("HighScore")) || 0;
-
   if (scorecount > currentHighScore) {
     localStorage.setItem("HighScore", scorecount);
     maxScoreElement.textContent = scorecount;
   }
 
-  // Reset game state
   snake.length = 0;
   snake.push({
     x: Math.floor(Math.random() * (rows - rows / 3)),
@@ -142,42 +206,84 @@ function RestartGame() {
   ];
 
   motion = "down";
+  nextDirection = "down";
   scorecount = 0;
   score.textContent = "0";
   seconds = 0;
   min = 0;
+  speed = 420;
 
-  // Hide modal and restart game
   modal.style.display = "none";
-  gameloop = setInterval(() => {
-    render();
-  }, 300);
+  lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
 }
 
 startbutton.addEventListener("click", () => {
   modal.style.display = "none";
-  gameloop = setInterval(() => {
-    render();
-  }, 300);
+  lastTime = performance.now();
+  requestAnimationFrame(gameLoop);
 });
 
 restartbutton.addEventListener("click", RestartGame);
 
-window.addEventListener("keydown", (eve) => {
-  if (eve.key == "ArrowUp" && motion != "down") {
-    motion = "up";
-  }
-  if (eve.key == "ArrowDown" && motion != "up") {
-    motion = "down";
-  }
-  if (eve.key == "ArrowLeft" && motion != "right") {
-    motion = "left";
-  }
-  if (eve.key == "ArrowRight" && motion != "left") {
-    motion = "right";
-  }
-});
+function getTailDirection() {
+  if (snake.length < 2) return "down";
 
-gameloop = setInterval(() => {
-  render();
-}, 300);
+  const tail = snake[snake.length - 1];
+  const beforeTail = snake[snake.length - 2];
+
+  if (tail.x < beforeTail.x) return "up";
+  if (tail.x > beforeTail.x) return "down";
+  if (tail.y < beforeTail.y) return "left";
+  if (tail.y > beforeTail.y) return "right";
+}
+
+function createEyes() {
+  const eye1 = document.createElement("div");
+  eye1.classList.add("eye");
+  const pupil1 = document.createElement("div");
+  pupil1.classList.add("pupil");
+  eye1.appendChild(pupil1);
+
+  const eye2 = document.createElement("div");
+  eye2.classList.add("eye");
+  const pupil2 = document.createElement("div");
+  pupil2.classList.add("pupil");
+  eye2.appendChild(pupil2);
+
+  return [eye1, eye2];
+}
+
+function gameLoop(currentTime) {
+  const delta = currentTime - lastTime;
+  lastTime = currentTime;
+  accumulator += delta;
+
+  // Move snake only when enough time passed
+  while (accumulator >= speed) {
+    render(); // logic update
+    accumulator -= speed;
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+window.addEventListener("keydown", (eve) => {
+  const map = {
+    ArrowUp: "up",
+    ArrowDown: "down",
+    ArrowLeft: "left",
+    ArrowRight: "right",
+  };
+
+  const newDir = map[eve.key];
+  if (!newDir) return;
+
+  const opposite =
+    (motion === "up" && newDir === "down") ||
+    (motion === "down" && newDir === "up") ||
+    (motion === "left" && newDir === "right") ||
+    (motion === "right" && newDir === "left");
+
+  if (!opposite) nextDirection = newDir;
+});
