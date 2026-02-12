@@ -6,7 +6,7 @@ A modern, pixel-art styled implementation of the classic Snake game built with v
   <img src="./img/gameplay.png" alt="FaFa Snake Game Gameplay" width="800">
 </div>
 
-## 🎮 Demo
+## 🎮 Learnt From
 
 [Watch Tutorial Video](https://youtu.be/SFLs1fYb5QA?si=5tHVGG_rcjMydst7) - *Inspired by Shreiyan Coding School*
 
@@ -46,7 +46,7 @@ fafa-snake-game/
 ├── style.css           # Styling and visual design
 ├── script.js           # Game logic and mechanics
 ├── FAAAH!.mpeg        # Sound effect for eating food
-├── screenshots/        # Game screenshots
+├── img/        # Game screenshots
 │   ├── start.png
 │   ├── gameplay.png
 │   └── gameover.png
